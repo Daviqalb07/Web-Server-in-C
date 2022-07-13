@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <strings.h>
+#include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -10,34 +10,38 @@
 
 #include "properties.h"
 
-int main(int argc, char const *argv[])
-{
+typedef struct {
     int sockfd;
-    struct sockaddr_in serveraddr;
+    struct sockaddr_in address;
+} Host;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if(sockfd < 0){
+
+Host createServer(int port, char *address){
+    Host host;
+    host.sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if(host.sockfd < 0){
         printf("Não deu certo.\n");
         exit(0);
     }
     else
         printf("Socket criado\n");
     
-    bzero(&serveraddr, sizeof(serveraddr));
+    memset(&host.address, 0, sizeof(host.address));
 
-    serveraddr.sin_family = AF_INET;
-    serveraddr.sin_port = htons(PORT);
-    serveraddr.sin_addr.s_addr = inet_addr(IP_ADDR);
+    host.address.sin_family = AF_INET;
+    host.address.sin_port = htons(port);
+    host.address.sin_addr.s_addr = inet_addr(address);
 
-    if(bind(sockfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0){
-        printf("Servidor nao esta on :(\n");
-        exit(1);
-    }
+    return host;
+}
 
-    printf("Servidor Web esta ON! \n");
 
-    listen(sockfd, N_MAX_CLIENTS);
+
+int main(int argc, char const *argv[])
+{
+    Host server = createServer(PORT, IP_ADDR);
     return 0;
 
 
