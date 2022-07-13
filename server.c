@@ -3,10 +3,12 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
+#include <time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include "properties.h"
 
@@ -23,7 +25,23 @@ typedef struct{
     char protocol[40];
 } Request;
 
-Request reciveData(int fd){
+const char * get_mime_type(const char * name) {
+    const char * ext = strrchr(name, '.');
+    if (!ext) return NULL;
+    if (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0) return "text/html";
+    if (strcmp(ext, ".jpg") == 0 || strcmp(ext, ".jpeg") == 0) return "image/jpeg";
+    if (strcmp(ext, ".gif") == 0) return "image/gif";
+    if (strcmp(ext, ".png") == 0) return "image/png";
+    if (strcmp(ext, ".css") == 0) return "text/css";
+    if (strcmp(ext, ".au") == 0) return "audio/basic";
+    if (strcmp(ext, ".wav") == 0) return "audio/wav";
+    if (strcmp(ext, ".avi") == 0) return "video/x-msvideo";
+    if (strcmp(ext, ".mpeg") == 0 || strcmp(ext, ".mpg") == 0) return "video/mpeg";
+    if (strcmp(ext, ".mp3") == 0) return "audio/mpeg";
+    return NULL;
+}
+
+Request receiveData(int fd){
     Request request;
     char buffer[MAXBUF];
     read(fd, buffer, sizeof(buffer));
@@ -47,7 +65,28 @@ Request reciveData(int fd){
     return request;
 }
 
+void sendHeader(int clientfd, int status, char* title, char* type, int length, char* protocol){
+    char* header = {0};
+    char* aux;
+    char* timebuf;
+    time_t now;
 
+    sprintf(aux, "%s %d %s\r\n", protocol, status, title);
+    strcat(header, aux);
+
+    now = time(NULL);
+    strftime(timebuf, sizeof(timebuf), GMT_TIME, gmtime(&now));
+    memset(aux, '\0', sizeof(aux));
+    sprintf(aux, "Date: %s\r\n", timebuf);
+    strcat(header, aux);
+
+    printf("%s", header);
+}
+
+void sendData(int clientfd, char* filename){
+    char buffer[MAXBUF];
+
+}
 
 void serverBind(Host *server){
     if(bind(server->sockfd, (struct sockaddr*)&server->address, sizeof(server->address)) < 0){
@@ -91,6 +130,31 @@ Host createServer(int port, char *address){
     return host;
 }
 
+
+void handleConnection(int clientfd){
+    Request request;
+    struct stat statbuff;
+    request = receiveData(clientfd);
+
+    if(strcmp(request.method, "GET")){
+        perror("Metodo diferente de GET\n");
+        return;
+    }
+
+    if(!strcmp(request.path, "/"))
+        strcpy(request.path, "index.html");
+
+    if(stat(request.path, &statbuff) < 0){
+        perror("404 NOT FOUND\n");
+        return;
+    }
+
+    size_t length = S_ISREG(statbuff.st_mode) ? statbuff.st_size : -1;
+
+    sendHeader(clientfd, 200, "OK", "text/html", length, request.protocol);
+    sendData(clientfd, request.path);
+}
+
 bool acceptConnection(Host *server, Host *client){
     memset(&client->address, 0, sizeof(client->address));
     socklen_t sizeAdress = sizeof(server->address);
@@ -101,11 +165,9 @@ bool acceptConnection(Host *server, Host *client){
         return false;
     }
     printf("Cliente [%s] conectado pela porta [%d]\n", inet_ntoa(client->address.sin_addr), ntohs(client->address.sin_port));
+    handleConnection(client->sockfd);
     return true;
 }
-
- 
-
 
 int main(int argc, char const *argv[])
 {
@@ -113,10 +175,9 @@ int main(int argc, char const *argv[])
     Host clients[N_MAX_CLIENTS];
     Request request;
     acceptConnection(&server, &clients[0]);
-    request = reciveData(clients[0].sockfd);
-    printf("%s\n",request.method);
-    printf("%s\n",request.path);
-    printf("%s\n",request.protocol);
+    // printf("%s\n",request.method);
+    // printf("%s\n",request.path);
+    // printf("%s\n",request.protocol);
 
     return 0;
 }
