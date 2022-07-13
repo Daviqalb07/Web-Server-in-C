@@ -10,10 +10,64 @@
 
 #include "properties.h"
 
+typedef int bool;
+
 typedef struct {
     int sockfd;
     struct sockaddr_in address;
 } Host;
+
+typedef struct{
+    char *method;
+    char *path;
+    char *protocol;
+} Request;
+
+void reciveData(int fd){
+    Request request;
+    char buffer[MAXBUF];
+    read(fd, buffer, sizeof(buffer));
+    // // buffer = GET /index.html HTTP/1.1
+    // request.method = strtok(buffer, " ");
+    // request.path = strtok(NULL, " ");
+    // request.protocol = strtok(NULL, "\r");
+    // request.method = " ";
+    // request.path = " ";
+    // request.protocol = " ";
+    char dest[40] = "";
+    char dest1[40] = "";
+    char dest2[40] = "";
+    int k = 0;
+    for(int i = 0; i  < sizeof(buffer); i++){
+        if(buffer[i-1] == '\n') break;
+        if(buffer[i] == ' ') k++;
+        else{
+            if(k == 0) strncat(dest,&buffer[i],1);
+            if(k == 1) strncat(dest1,&buffer[i],1);
+            if(k == 2) strncat(dest2,&buffer[i],1);
+            // printf("%c",buffer[i]);
+        }
+    }
+    // for(int i = 0; i < sizeof(request.method); i++){
+    //     printf("%c",request.method[i]);
+    // }
+    // printf("\n");
+    // for(int i = 0; i < sizeof(request.path); i++){
+    //     printf("%c",request.path[i]);
+    // }
+    // printf("\n");
+    // for(int i = 0; i < sizeof(request.protocol); i++){
+    //     printf("%c",request.protocol[i]);
+    // }
+    // printf("\n");
+        printf(" %s \n", dest);
+        printf(" %s \n", dest1);
+        printf(" %s \n", dest2);
+
+    
+}
+
+
 
 void serverBind(Host *server){
     if(bind(server->sockfd, (struct sockaddr*)&server->address, sizeof(server->address)) < 0){
@@ -23,6 +77,7 @@ void serverBind(Host *server){
     else 
         printf("Ta de pe\n");
 }
+
 
 Host createServer(int port, char *address){
     Host host;
@@ -52,9 +107,22 @@ Host createServer(int port, char *address){
         printf("Escutando\n");
     }
 
+
     return host;
 }
 
+bool acceptConnection(Host *server, Host *client){
+    memset(&client->address, 0, sizeof(client->address));
+    socklen_t sizeAdress = sizeof(server->address);
+
+    client->sockfd = accept(server->sockfd, (struct sockaddr *) &client->address, &sizeAdress);
+    if(client->sockfd < 0){
+        printf("deu erro\n");
+        return false;
+    }
+    printf("Cliente [%s] conectado pela porta [%d]\n", inet_ntoa(client->address.sin_addr), ntohs(client->address.sin_port));
+    return true;
+}
 
  
 
@@ -62,9 +130,11 @@ Host createServer(int port, char *address){
 int main(int argc, char const *argv[])
 {
     Host server = createServer(PORT, IP_ADDR);
-
-
-    
     Host clients[N_MAX_CLIENTS];
+
+    acceptConnection(&server, &clients[0]);
+    reciveData(clients[0].sockfd);
+
+
     return 0;
 }
