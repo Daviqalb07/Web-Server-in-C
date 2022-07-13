@@ -18,53 +18,33 @@ typedef struct {
 } Host;
 
 typedef struct{
-    char *method;
-    char *path;
-    char *protocol;
+    char method[40];
+    char path[40];
+    char protocol[40];
 } Request;
 
-void reciveData(int fd){
+Request reciveData(int fd){
     Request request;
     char buffer[MAXBUF];
     read(fd, buffer, sizeof(buffer));
-    // // buffer = GET /index.html HTTP/1.1
-    // request.method = strtok(buffer, " ");
-    // request.path = strtok(NULL, " ");
-    // request.protocol = strtok(NULL, "\r");
-    // request.method = " ";
-    // request.path = " ";
-    // request.protocol = " ";
-    char dest[40] = "";
-    char dest1[40] = "";
-    char dest2[40] = "";
+    char method[40] = "";
+    char path[40] = "";
+    char protocol[40] = "";
     int k = 0;
     for(int i = 0; i  < sizeof(buffer); i++){
         if(buffer[i-1] == '\n') break;
         if(buffer[i] == ' ') k++;
         else{
-            if(k == 0) strncat(dest,&buffer[i],1);
-            if(k == 1) strncat(dest1,&buffer[i],1);
-            if(k == 2) strncat(dest2,&buffer[i],1);
-            // printf("%c",buffer[i]);
+            if(k == 0) strncat(method,&buffer[i],1);
+            if(k == 1) strncat(path,&buffer[i],1);
+            if(k == 2) strncat(protocol,&buffer[i],1);
         }
     }
-    // for(int i = 0; i < sizeof(request.method); i++){
-    //     printf("%c",request.method[i]);
-    // }
-    // printf("\n");
-    // for(int i = 0; i < sizeof(request.path); i++){
-    //     printf("%c",request.path[i]);
-    // }
-    // printf("\n");
-    // for(int i = 0; i < sizeof(request.protocol); i++){
-    //     printf("%c",request.protocol[i]);
-    // }
-    // printf("\n");
-        printf(" %s \n", dest);
-        printf(" %s \n", dest1);
-        printf(" %s \n", dest2);
+    strcpy(request.method,method);
+    strcpy(request.path,path);
+    strcpy(request.protocol,protocol);    
 
-    
+    return request;
 }
 
 
@@ -131,10 +111,12 @@ int main(int argc, char const *argv[])
 {
     Host server = createServer(PORT, IP_ADDR);
     Host clients[N_MAX_CLIENTS];
-
+    Request request;
     acceptConnection(&server, &clients[0]);
-    reciveData(clients[0].sockfd);
-
+    request = reciveData(clients[0].sockfd);
+    printf("%s\n",request.method);
+    printf("%s\n",request.path);
+    printf("%s\n",request.protocol);
 
     return 0;
 }
