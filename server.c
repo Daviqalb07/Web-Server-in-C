@@ -58,6 +58,7 @@ Request receiveData(int fd){
             if(k == 2) strncat(protocol,&buffer[i],1);
         }
     }
+    protocol[strlen(protocol)-2] = '\0';
     strcpy(request.method,method);
     strcpy(request.path,path);
     strcpy(request.protocol,protocol);    
@@ -66,9 +67,9 @@ Request receiveData(int fd){
 }
 
 void sendHeader(int clientfd, int status, char* title, char* type, int length, char* protocol){
-    char* header = {0};
-    char* aux;
-    char* timebuf;
+    char header[MAXBUF] = {0};
+    char aux[200] = {0};
+    char timebuf[150] = {0};
     time_t now;
 
     sprintf(aux, "%s %d %s\r\n", protocol, status, title);
@@ -80,7 +81,22 @@ void sendHeader(int clientfd, int status, char* title, char* type, int length, c
     sprintf(aux, "Date: %s\r\n", timebuf);
     strcat(header, aux);
 
+
+    if (type) {
+        memset(aux, '\0', sizeof(aux));
+        sprintf(aux, "Content-Type: %s\r\n", type);
+        strcat(header, aux);
+    }
+    if (length >= 0) {
+        memset(aux, '\0', sizeof(aux));
+        sprintf(aux, "Content-Length: %d\r\n", length);
+        strcat(header, aux);
+    }
+    strcat(header, "Connection: close\r\n\r\n");
+    //send(handler, header, strlen(header), 0);
+
     printf("%s", header);
+
 }
 
 void sendData(int clientfd, char* filename){
