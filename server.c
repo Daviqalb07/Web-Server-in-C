@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <time.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -94,12 +95,18 @@ void sendHeader(int clientfd, int status, char* title, char* type, int length, c
     }
     strcat(header, "Connection: close\r\n\r\n");
     
+    printf("%s", header);
     send(clientfd, header, strlen(header), 0);
 }
 
 void sendData(int clientfd, char* filename){
-    char buffer[MAXBUF];
+    char buffaux;
+    int fd;
+    fd = open(filename, O_RDONLY);
 
+    while(read(fd, &buffaux, 1)){
+        write(clientfd, &buffaux, 1);
+    }
 }
 
 void serverBind(Host *server){
@@ -148,24 +155,32 @@ Host createServer(int port, char *address){
 void handleConnection(int clientfd){
     Request request;
     struct stat statbuff;
+    char type[50];
+    char pathaux[40];
+
     request = receiveData(clientfd);
 
+    printf("%s\n", request.path);
     if(strcmp(request.method, "GET")){
         perror("Metodo diferente de GET\n");
         return;
     }
 
     if(!strcmp(request.path, "/"))
-        strcpy(request.path, "index.html");
-
+        strcpy(request.path, "/index.html");
+    
+    strcpy(pathaux, request.path);
+    sprintf(request.path, "%s%s", CURRENT_DIR, pathaux);
+    
     if(stat(request.path, &statbuff) < 0){
         perror("404 NOT FOUND\n");
         return;
     }
 
+    strcpy(type, get_mime_type(request.path));
     size_t length = S_ISREG(statbuff.st_mode) ? statbuff.st_size : -1;
 
-    sendHeader(clientfd, 200, "OK", "text/html", length, request.protocol);
+    sendHeader(clientfd, 200, "OK", type, length, request.protocol);
     sendData(clientfd, request.path);
 }
 
@@ -187,11 +202,9 @@ int main(int argc, char const *argv[])
 {
     Host server = createServer(PORT, IP_ADDR);
     Host clients[N_MAX_CLIENTS];
-    Request request;
-    acceptConnection(&server, &clients[0]);
-    // printf("%s\n",request.method);
-    // printf("%s\n",request.path);
-    // printf("%s\n",request.protocol);
+
+    while(1)
+        acceptConnection(&server, &clients[0]);
 
     return 0;
 }
