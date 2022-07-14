@@ -155,8 +155,8 @@ Host createServer(int port, char *address){
 void handleConnection(int clientfd){
     Request request;
     struct stat statbuff;
-    char type[50];
-    char pathaux[40];
+    char type[50] = {0};
+    char pathaux[40] = ".";
 
     request = receiveData(clientfd);
 
@@ -169,18 +169,19 @@ void handleConnection(int clientfd){
     if(!strcmp(request.path, "/"))
         strcpy(request.path, "/index.html");
     
-    strcpy(pathaux, request.path);
-    sprintf(request.path, "%s%s", CURRENT_DIR, pathaux);
-    
+    strcat(pathaux, request.path);
+    strcpy(request.path, pathaux);
+
     if(stat(request.path, &statbuff) < 0){
         perror("404 NOT FOUND\n");
         return;
     }
 
-    strcpy(type, get_mime_type(request.path));
     size_t length = S_ISREG(statbuff.st_mode) ? statbuff.st_size : -1;
 
-    sendHeader(clientfd, 200, "OK", type, length, request.protocol);
+    printf("Chegou aqui 1\n");
+    sendHeader(clientfd, 200, "OK", (char*)get_mime_type(request.path), length, request.protocol);
+    printf("Chegou aqui 2\n");
     sendData(clientfd, request.path);
 }
 
@@ -202,9 +203,11 @@ int main(int argc, char const *argv[])
 {
     Host server = createServer(PORT, IP_ADDR);
     Host clients[N_MAX_CLIENTS];
-
-    while(1)
-        acceptConnection(&server, &clients[0]);
+    int i = 0;
+    while(1){
+        acceptConnection(&server, &clients[i]);
+        i++;
+    }
 
     return 0;
 }

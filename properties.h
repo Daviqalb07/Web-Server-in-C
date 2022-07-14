@@ -9,6 +9,6 @@
 #define true 1
 #define false 0
 #define GMT_TIME "%a, %d %b %Y %H:%M:%S GMT"
-#define CURRENT_DIR "."
+#define CURRENT_DIR '.'
 
 #endif
