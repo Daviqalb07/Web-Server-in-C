@@ -18,6 +18,7 @@ typedef int bool;
 typedef struct {
     int sockfd;
     struct sockaddr_in address;
+    bool using;
 } Host;
 
 typedef struct{
@@ -107,6 +108,7 @@ void sendData(int clientfd, char* filename){
     while(read(fd, &buffaux, 1)){
         write(clientfd, &buffaux, 1);
     }
+    close(fd);
 }
 
 void serverBind(Host *server){
@@ -152,13 +154,14 @@ Host createServer(int port, char *address){
 }
 
 
-void handleConnection(int clientfd){
+void handleConnection(void* cli){
+    Host* client = (Host*)cli;
     Request request;
     struct stat statbuff;
     char type[50] = {0};
-    char pathaux[40] = ".";
+    char pathaux[40] = "."; // Only files in current directory
 
-    request = receiveData(clientfd);
+    request = receiveData(client->sockfd);
 
     printf("%s\n", request.path);
     if(strcmp(request.method, "GET")){
@@ -179,10 +182,12 @@ void handleConnection(int clientfd){
 
     size_t length = S_ISREG(statbuff.st_mode) ? statbuff.st_size : -1;
 
-    printf("Chegou aqui 1\n");
-    sendHeader(clientfd, 200, "OK", (char*)get_mime_type(request.path), length, request.protocol);
-    printf("Chegou aqui 2\n");
-    sendData(clientfd, request.path);
+    sendHeader(client->sockfd, 200, "OK", (char*)get_mime_type(request.path), length, request.protocol);
+    sendData(client->sockfd, request.path);
+
+    close(client->sockfd);
+    client->using = false;
+    pthread_exit(NULL);
 }
 
 bool acceptConnection(Host *server, Host *client){
@@ -190,12 +195,12 @@ bool acceptConnection(Host *server, Host *client){
     socklen_t sizeAdress = sizeof(server->address);
 
     client->sockfd = accept(server->sockfd, (struct sockaddr *) &client->address, &sizeAdress);
+    client->using = true;
     if(client->sockfd < 0){
         printf("deu erro\n");
         return false;
     }
     printf("Cliente [%s] conectado pela porta [%d]\n", inet_ntoa(client->address.sin_addr), ntohs(client->address.sin_port));
-    handleConnection(client->sockfd);
     return true;
 }
 
@@ -203,10 +208,23 @@ int main(int argc, char const *argv[])
 {
     Host server = createServer(PORT, IP_ADDR);
     Host clients[N_MAX_CLIENTS];
-    int i = 0;
+    pthread_t threads[N_MAX_CLIENTS];
+    int indexthread = 0;
+
+    for(int i=0 ; i < N_MAX_CLIENTS ; i++)
+        clients[i].using = false;
+
+    memset(clients, 0, sizeof(clients));
+
     while(1){
-        acceptConnection(&server, &clients[i]);
-        i++;
+        if(clients[indexthread].using)
+            indexthread = (indexthread + 1) % N_MAX_CLIENTS;
+        else{
+            if(acceptConnection(&server, &clients[indexthread])){
+                pthread_create(&threads[indexthread], NULL, (void*)handleConnection, (void*)&clients[indexthread]);
+            }
+        }
+
     }
 
     return 0;
