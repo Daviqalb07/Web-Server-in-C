@@ -93,10 +93,8 @@ void sendHeader(int clientfd, int status, char* title, char* type, int length, c
         strcat(header, aux);
     }
     strcat(header, "Connection: close\r\n\r\n");
-    //send(handler, header, strlen(header), 0);
-
-    printf("%s", header);
-
+    
+    send(clientfd, header, strlen(header), 0);
 }
 
 void sendData(int clientfd, char* filename){
