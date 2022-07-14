@@ -117,7 +117,7 @@ void serverBind(Host *server){
         exit(1);
     }
     else 
-        printf("Ta de pe\n");
+        printf("Servidor Web esta ON!\n");
 }
 
 
@@ -146,7 +146,7 @@ Host createServer(int port, char *address){
     }
     else
     {
-        printf("Escutando\n");
+        printf("Escutando\n\n\n");
     }
 
 
@@ -207,6 +207,22 @@ bool acceptConnection(Host *server, Host *client){
 int main(int argc, char const *argv[])
 {
     Host server = createServer(PORT, IP_ADDR);
+    
+    pid_t pid, sid;
+    pid = fork();
+
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+
+    else if (pid > 0)
+    {
+        printf("Child PID: %d\n", pid);
+        exit(EXIT_SUCCESS);
+    }
+
+    umask(0);
+    sid = setsid();
+
     Host clients[N_MAX_CLIENTS];
     pthread_t threads[N_MAX_CLIENTS];
     int indexthread = 0;
